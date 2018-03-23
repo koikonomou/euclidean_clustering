@@ -20,7 +20,7 @@
 #include <pcl/segmentation/extract_clusters.h>
 
 
- ros::Publisher pub;
+ros::Publisher pub;
 
 
 void cloud_callback (const sensor_msgs::PointCloud2& msg){
@@ -28,7 +28,7 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg){
 
     pcl::PCLPointCloud2 cloud2;
     pcl_conversions::toPCL( msg , cloud2);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ> ());
     pcl::fromPCLPointCloud2(cloud2, *cloud);
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
@@ -88,14 +88,20 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg){
 
 	std::vector<pcl::PointIndices> cluster_indices;
 	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-	ec.setClusterTolerance (0.02); // 2cm
-	ec.setMinClusterSize (100);
+	// ec.setClusterTolerance (0.02); // 2cm
+	// ec.setMinClusterSize (100);
+	ec.setClusterTolerance (0.1); // 2cm
+	ec.setMinClusterSize (10);
 	ec.setMaxClusterSize (25000);
 	ec.setSearchMethod (tree);
 	ec.setInputCloud (cloud_filtered);
 	ec.extract (cluster_indices);
 
 	int j = 0;
+	
+	my_new_msgs::clustering msg_;
+
+	std::vector<sensor_msgs::PointCloud2 > clouds; 
 
 	for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
 	{
@@ -109,34 +115,30 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg){
 		cloud_cluster->is_dense = true;
 
 		std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
-		//	std::stringstream ss;
-		//	ss << "cloud_cluster_" << j << ".pcd";
-		//	writer.write<pcl::PointXYZ> (ss.str (), *cloud_cluster, false); //*
 		j++;
 
-		my_new_msgs::clustering msg_;
+		sensor_msgs::PointCloud2 msgout;
+        pcl::PCLPointCloud2 cloud2;
+        pcl::toPCLPointCloud2(*cloud_cluster, cloud2);
 
-		for(int i=0; i < cloud_cluster->points.size(); i++){
-			//clust_cloud.clusters.push_back(cloud_cluster->points.size ());
-		}
-
-		pub.publish(msg_);
-
-			
+        pcl_conversions::fromPCL(cloud2, msgout);
+        clouds.push_back(msgout);
+        msg_.clusters.push_back(msgout);			
 
 
 	}
+	pub.publish(msg_);
 	
 }
 
 int main (int argc, char** argv){
-	ros::init (argc, argv, "new_point_pointmsg");
+	ros::init (argc, argv, "cluster_extraction");
 	ros::NodeHandle n_;
 
 	std::string topic;
 	std::string out_topic;
 
-	n_.param("new_point_pointmsg/cloud_topic", topic, std::string("/pointcloud2"));
+	n_.param("new_point_pointmsg/cloud_topic", topic, std::string("/new_point_cloud"));
 	n_.param("new_point_pointmsg/output_cloud_topic", out_topic, std::string("/new_pcl"));
 
 	ros::Subscriber sub = n_.subscribe (topic, 1, cloud_callback);
