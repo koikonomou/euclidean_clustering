@@ -39,3 +39,6 @@ include_directories(
 
 add_executable(euclidean_cluster_extraction src/euclidean_cluster_extraction.cpp)
 target_link_libraries(euclidean_cluster_extraction ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(colored_clusters src/colored_clusters.cpp)
+target_link_libraries(colored_clusters ${catkin_LIBRARIES} ${PCL_LIBRARIES})
