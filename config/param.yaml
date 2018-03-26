@@ -1,13 +1,14 @@
 topic: "/new_point_cloud"
 out_topic: "/new_pcl"
 
+#filtering
 x: 0.0
 y: 0.0
 z: 0.0 
+# #default= 0.01f
 
-
-maxIterations: 100
-distanceThreshold: 0.02
-clusterTolerance: 1
-minClusterSize: 10
-maxClusterSize: 2500
+maxIterations: 100 #default= 100
+distanceThreshold: 0.1 #default= 0.02 
+clusterTolerance: 0.5 #default= 0.02
+minClusterSize: 10 #default= 100
+maxClusterSize: 300 #default= 25000
