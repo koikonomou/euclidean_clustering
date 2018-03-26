@@ -22,6 +22,12 @@
 
 ros::Publisher pub;
 
+float x, y, z ;
+double distanceThreshold;
+
+int maxIterations;
+int clusterTolerance, minClusterSize, maxClusterSize;
+
 
 void cloud_callback (const sensor_msgs::PointCloud2& msg)
 {
@@ -37,7 +43,7 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg)
     pcl::VoxelGrid<pcl::PointXYZ> vg;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
     vg.setInputCloud (cloud);
-    vg.setLeafSize (0.01f, 0.01f, 0.01f);
+    vg.setLeafSize (x, y, z);
     vg.filter (*cloud_filtered);
     std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl; //*
 
@@ -50,8 +56,8 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg)
     seg.setOptimizeCoefficients (true);
     seg.setModelType (pcl::SACMODEL_PLANE);
     seg.setMethodType (pcl::SAC_RANSAC);
-    seg.setMaxIterations (100);
-    seg.setDistanceThreshold (0.02);
+    seg.setMaxIterations (maxIterations);
+    seg.setDistanceThreshold (distanceThreshold);
 
     int i=0, nr_points = (int) cloud_filtered->points.size ();
 
@@ -88,9 +94,9 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg)
 
     std::vector<pcl::PointIndices> cluster_indices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-    ec.setClusterTolerance (0.1); // 2cm
-    ec.setMinClusterSize (10); //100
-    ec.setMaxClusterSize (25000);
+    ec.setClusterTolerance (clusterTolerance);// 2cm
+    ec.setMinClusterSize (minClusterSize); //100
+    ec.setMaxClusterSize (maxClusterSize);
     ec.setSearchMethod (tree);
     ec.setInputCloud (cloud_filtered);
     ec.extract (cluster_indices);
@@ -134,9 +140,19 @@ int main (int argc, char** argv){
     ros::init (argc, argv, "cluster_extraction");
     ros::NodeHandle n_;
 
+    n_.param("new_point_pointmsg/x", x, 0.01f);
+    n_.param("new_point_pointmsg/y", y, 0.01f);
+    n_.param("new_point_pointmsg/z", z, 0.01f);
+
+
+    n_.param("new_point_pointmsg/setMaxIterations", maxIterations, 100);
+    n_.param("new_point_pointmsg/setDistanceThreshold", distanceThreshold, 0.02);
+    n_.param("new_point_pointmsg/setClusterTolerance", clusterTolerance, 1);
+    n_.param("new_point_pointmsg/setMinClusterSize", minClusterSize, 10);
+    n_.param("new_point_pointmsg/setMaxClusterSize", maxClusterSize, 2500);
+    
     std::string topic;
     std::string out_topic;
-
     n_.param("new_point_pointmsg/cloud_topic", topic, std::string("/new_point_cloud"));
     n_.param("new_point_pointmsg/output_cloud_topic", out_topic, std::string("/new_pcl"));
 
