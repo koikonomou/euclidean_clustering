@@ -53,9 +53,15 @@ int main (int argc, char** argv){
     ros::NodeHandle n_;
     pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
 
-    ros::Subscriber sub = n_.subscribe ("/new_pcl", 1, cluster_callback);
 
-    pub = n_.advertise<sensor_msgs::PointCloud2> ("rgb_cluster", 1);
+    std::string input_topic;
+    std::string out_topic;
+    n_.param("color_cluster/cloud_topic",input_topic, std::string("/region_clusters"));
+    n_.param("color_cluster/output_cloud_topic", out_topic, std::string("/rgb_cluster"));
+
+    ros::Subscriber sub = n_.subscribe (input_topic, 1, cluster_callback);
+
+    pub = n_.advertise<sensor_msgs::PointCloud2> (out_topic, 1);
 
     ros::spin ();
 }

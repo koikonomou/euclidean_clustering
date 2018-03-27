@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+    <node pkg="euclidean_clustering" type="colored_clusters" respawn="false" name="colored_clusters" output="screen">
+        <rosparam file="$(find euclidean_clustering)/config/colored_clusters_param.yaml" command="load" />
+    </node>
+</launch>
