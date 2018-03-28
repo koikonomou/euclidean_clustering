@@ -2,9 +2,9 @@ topic: "/new_point_cloud"
 out_topic: "/new_pcl"
 
 #filtering
-x: 0.0
-y: 0.0
-z: 0.0 
+#x: 0.0
+#y: 0.0
+#z: 0.0 
 # #default= 0.01f
 
 maxIterations: 100 #default= 100

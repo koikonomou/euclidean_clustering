@@ -141,9 +141,9 @@ int main (int argc, char** argv){
     ros::init (argc, argv, "cluster_extraction");
     ros::NodeHandle n_;
 
-    n_.param("new_point_pointmsg/x", x, 0.01f);
-    n_.param("new_point_pointmsg/y", y, 0.01f);
-    n_.param("new_point_pointmsg/z", z, 0.01f);
+    // n_.param("new_point_pointmsg/x", x, 0.01f);
+    // n_.param("new_point_pointmsg/y", y, 0.01f);
+    // n_.param("new_point_pointmsg/z", z, 0.01f);
 
 
     n_.param("new_point_pointmsg/setMaxIterations", maxIterations, 100);
