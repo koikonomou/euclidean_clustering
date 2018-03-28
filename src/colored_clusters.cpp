@@ -56,7 +56,7 @@ int main (int argc, char** argv){
 
     std::string input_topic;
     std::string out_topic;
-    n_.param("color_cluster/cloud_topic",input_topic, std::string("/region_clusters"));
+    n_.param("color_cluster/cloud_topic",input_topic, std::string("/new_pcl"));
     n_.param("color_cluster/output_cloud_topic", out_topic, std::string("/rgb_cluster"));
 
     ros::Subscriber sub = n_.subscribe (input_topic, 1, cluster_callback);

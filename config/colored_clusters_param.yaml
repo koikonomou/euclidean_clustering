@@ -1,2 +1,2 @@
-input_topic: "region_clusters"
+input_topic: "new_pcl"
 out_topic: "/rgb_clusters"
