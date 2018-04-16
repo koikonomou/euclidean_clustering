@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
+#include <my_new_msgs/clustering.h>
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/impl/point_types.hpp>
@@ -166,48 +167,65 @@ void viz_cb (pcl::visualization::PCLVisualizer& viz)
 }
 
 
-void cloudcallback (const sensor_msgs::PointCloud2& msg ){
+void cloudcallback (const my_new_msgs::clustering& msg ){
 
-    pcl::PCLPointCloud2 cloud2;
-    pcl_conversions::toPCL( msg , cloud2);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
-    target_cloud.reset(new Cloud());
-    pcl::fromPCLPointCloud2(cloud2, *target_cloud);
+    sensor_msgs::PointCloud2 accumulator;
 
-    pcl::PCLPointCloud2 newcloud2;
-    pcl_conversions::toPCL( msg , newcloud2);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pass_(new pcl::PointCloud<pcl::PointXYZ> ());
+    sensor_msgs::PointCloud2 cluster_msgs;
 
-    //target_cloud.reset(new Cloud());
-    pcl::fromPCLPointCloud2(newcloud2, *cloud_pass_);
+    for (size_t i=0; i< msg.clusters.size(); i++){
 
+        pcl::PCLPointCloud2 cloud2;
+        pcl_conversions::toPCL( msg.clusters[i] , cloud2);
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+        pcl::fromPCLPointCloud2(cloud2, *target_cloud);
+
+        // target_cloud.reset(new Cloud());
+        pcl::PCLPointCloud2 newcloud2;
+        pcl::toPCLPointCloud2(*target_cloud, newcloud2);
+        pcl_conversions::fromPCL(newcloud2, cluster_msgs);
+        sensor_msgs::PointCloud2 tmp = sensor_msgs::PointCloud2(accumulator);
+        pcl::concatenatePointCloud( cluster_msgs, tmp, accumulator);
+
+        pcl::PCLPointCloud2 pcl2;
+        pcl_conversions::toPCL( accumulator , pcl2);
+
+        //target_cloud.reset(new Cloud());
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pass_(new pcl::PointCloud<pcl::PointXYZ> ());
+        pcl::fromPCLPointCloud2(pcl2, *cloud_pass_);
+    }
 
     //prepare the model of tracker's target
-    Eigen::Vector4f c;
-    Eigen::Affine3f trans = Eigen::Affine3f::Identity ();
-    CloudPtr transed_ref (new Cloud);
-    CloudPtr transed_ref_downsampled (new Cloud);
+    for (size_t j=0; msg.clusters.size(); j=0){
+
+        pcl::PCLPointCloud2 cloud2;
+        pcl_conversions::toPCL( msg.clusters[j] , cloud2);
 
 
-    pcl::compute3DCentroid<RefPointType> (*target_cloud, c);
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+        target_cloud.reset(new Cloud());
+        pcl::fromPCLPointCloud2(cloud2, *target_cloud);
 
-    trans.translation ().matrix () = Eigen::Vector3f (c[0], c[1], c[2]);
+        Eigen::Vector4f c;
+        Eigen::Affine3f trans = Eigen::Affine3f::Identity ();
+        CloudPtr transed_ref (new Cloud);
+        CloudPtr transed_ref_downsampled (new Cloud);
 
-    pcl::transformPointCloud<RefPointType> (*target_cloud, *transed_ref, trans.inverse());
+        pcl::compute3DCentroid<RefPointType> (*target_cloud, c);
 
-    gridSampleApprox (transed_ref, *transed_ref_downsampled, downsampling_grid_size_);
+        trans.translation ().matrix () = Eigen::Vector3f (c[0], c[1], c[2]);
 
+        pcl::transformPointCloud<RefPointType> (*target_cloud, *transed_ref, trans.inverse());
 
-    //set reference model and trans
-    tracker_->setReferenceCloud (transed_ref_downsampled);
-
-    tracker_->setTrans (trans);
-
-
-
+        gridSampleApprox (transed_ref, *transed_ref_downsampled, downsampling_grid_size_);
 
 
+        //set reference model and trans
+        tracker_->setReferenceCloud (transed_ref_downsampled);
 
+        tracker_->setTrans (trans);
+    }
 
     CloudConstPtr cloud;
     // cloud_pass_.reset (new Cloud);
@@ -223,11 +241,7 @@ void cloudcallback (const sensor_msgs::PointCloud2& msg ){
 
     //tracker_->compute ();
 ;
-
     new_cloud_ = true;
-
-
-   
 
 }
 
@@ -236,7 +250,7 @@ int main (int argc, char** argv)
     ros::init (argc, argv, "tracking");
     ros::NodeHandle n_;
 
-    ros::Subscriber sub = n_.subscribe ("/new_point_cloud", 1, cloudcallback);
+    ros::Subscriber sub = n_.subscribe ("/new_pcl", 1, cloudcallback);
 
     //Setup OpenNIGrabber and viewer
     pcl::visualization::CloudViewer* viewer_ = new pcl::visualization::CloudViewer("PCL OpenNI Tracking Viewer");
@@ -253,7 +267,7 @@ int main (int argc, char** argv)
     //interface->stop();
  //Set parameters
     new_cloud_ = false;
-    downsampling_grid_size_ =  0.002;
+    downsampling_grid_size_ = 0.002;
 
     std::vector<double> default_step_covariance = std::vector<double> (6, 0.015 * 0.015);
     default_step_covariance[3] *= 40.0;
