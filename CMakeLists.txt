@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
   my_new_msgs
   pcl_ros
+  pcl_conversions
+  cv_bridge
   roscpp
   rospy
   sensor_msgs
@@ -18,11 +20,15 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
-find_package(PCL 1.8 REQUIRED)
+find_package(PCL 1.8.1 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+find_package(OpenCV)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+find_package(Boost COMPONENTS format)
 
 catkin_package()
 
@@ -35,6 +41,7 @@ catkin_package()
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
 )
 
 add_executable(euclidean_cluster_extraction src/euclidean_cluster_extraction.cpp)
@@ -42,4 +49,7 @@ target_link_libraries(euclidean_cluster_extraction ${catkin_LIBRARIES} ${PCL_LIB
 
 add_executable(colored_clusters src/colored_clusters.cpp)
 target_link_libraries(colored_clusters ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(tracking src/tracking.cpp)
+target_link_libraries(tracking ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
 
