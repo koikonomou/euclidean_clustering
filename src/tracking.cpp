@@ -165,24 +165,6 @@ void viz_cb (pcl::visualization::PCLVisualizer& viz)
   new_cloud_ = false;
 }
 
-//OpenNI Grabber's cloud Callback function
-// void cloud_cb (const CloudConstPtr &cloud)
-// {
-//     boost::mutex::scoped_lock lock (mtx_);
-//     cloud_pass_.reset (new Cloud);
-//     cloud_pass_downsampled_.reset (new Cloud);
-//     filterPassThrough (cloud, *cloud_pass_);
-//     gridSampleApprox (cloud_pass_, *cloud_pass_downsampled_, downsampling_grid_size_);
-
-//     if(counter < 10){
-//         counter++;
-//     }else{
-//          //Track the object
-//         tracker_->setInputCloud (cloud_pass_downsampled_);
-//         tracker_->compute ();
-//         new_cloud_ = true;
-//     }
-// }
 
 void cloudcallback (const sensor_msgs::PointCloud2& msg ){
 
@@ -191,18 +173,13 @@ void cloudcallback (const sensor_msgs::PointCloud2& msg ){
     pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
     target_cloud.reset(new Cloud());
     pcl::fromPCLPointCloud2(cloud2, *target_cloud);
-    ROS_WARN("%lu", target_cloud->points.size());
 
     pcl::PCLPointCloud2 newcloud2;
     pcl_conversions::toPCL( msg , newcloud2);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pass_(new pcl::PointCloud<pcl::PointXYZ> ());
-    ROS_WARN("1");
+
     //target_cloud.reset(new Cloud());
     pcl::fromPCLPointCloud2(newcloud2, *cloud_pass_);
-    ROS_WARN("2");
-
-
-
 
 
     //prepare the model of tracker's target
@@ -210,22 +187,22 @@ void cloudcallback (const sensor_msgs::PointCloud2& msg ){
     Eigen::Affine3f trans = Eigen::Affine3f::Identity ();
     CloudPtr transed_ref (new Cloud);
     CloudPtr transed_ref_downsampled (new Cloud);
-    ROS_WARN("3");
+
 
     pcl::compute3DCentroid<RefPointType> (*target_cloud, c);
-    ROS_WARN("4");
+
     trans.translation ().matrix () = Eigen::Vector3f (c[0], c[1], c[2]);
-    ROS_WARN("5");
+
     pcl::transformPointCloud<RefPointType> (*target_cloud, *transed_ref, trans.inverse());
-    ROS_WARN("6");
+
     gridSampleApprox (transed_ref, *transed_ref_downsampled, downsampling_grid_size_);
-    ROS_WARN("7");
+
 
     //set reference model and trans
     tracker_->setReferenceCloud (transed_ref_downsampled);
-    ROS_WARN("8");
+
     tracker_->setTrans (trans);
-    ROS_WARN("9");
+
 
 
 
@@ -235,19 +212,17 @@ void cloudcallback (const sensor_msgs::PointCloud2& msg ){
     CloudConstPtr cloud;
     // cloud_pass_.reset (new Cloud);
     cloud_pass_downsampled_.reset (new Cloud);
-    ROS_WARN("10");
+;
     filterPassThrough (cloud, *cloud_pass_);
     gridSampleApprox (cloud_pass_, *cloud_pass_downsampled_, downsampling_grid_size_);
-    ROS_WARN("11");
+;
 
          //Track the object
     tracker_->setInputCloud (cloud_pass_downsampled_);
-    ROS_WARN("12");
-    ROS_WARN("%lu", cloud_pass_->points.size());
-
+;
 
     //tracker_->compute ();
-    ROS_WARN("13");
+;
 
     new_cloud_ = true;
 
