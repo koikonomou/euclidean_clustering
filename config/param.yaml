@@ -8,7 +8,7 @@ out_topic: "/new_pcl"
 # #default= 0.01f
 
 maxIterations: 100 #default= 100
-distanceThreshold: 0.1 #default= 0.02 
-clusterTolerance: 0.5 #default= 0.02
-minClusterSize: 10 #default= 100
-maxClusterSize: 300 #default= 25000
+distanceThreshold: 0.01 #default= 0.02 
+clusterTolerance: 0.15 #default= 0.02
+minClusterSize: 20 #default= 100
+maxClusterSize: 250000 #default= 25000
