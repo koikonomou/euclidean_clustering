@@ -9,10 +9,11 @@
 #include <pcl/common/projection_matrix.h>
 #include <sensor_msgs/point_cloud_conversion.h>
 
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/openni_grabber.h>
-#include <pcl/console/parse.h>
+// #include <pcl/console/parse.h>
 #include <pcl/common/time.h>
 #include <pcl/common/centroid.h>
 
@@ -66,104 +67,106 @@ ros::Publisher pub;
 //Filter along a specified dimension
 void filterPassThrough (const CloudConstPtr &cloud, Cloud &result)
 {
-  pcl::PassThrough<pcl::PointXYZ> pass;
-  pass.setFilterFieldName ("z");
-  pass.setFilterLimits (0.0, 10.0);
-  pass.setKeepOrganized (false);
-  pass.setInputCloud (cloud);
-  pass.filter (result);
+    pcl::PassThrough<pcl::PointXYZ> pass;
+    pass.setFilterFieldName ("z");
+    pass.setFilterLimits (0.0, 10.0);
+    pass.setKeepOrganized (false);
+    pass.setInputCloud (cloud);
+    pass.filter (result);
 }
 
 
 void gridSampleApprox (const CloudConstPtr &cloud, Cloud &result, double leaf_size)
 {
-  pcl::ApproximateVoxelGrid<pcl::PointXYZ> grid;
-  grid.setLeafSize (static_cast<float> (leaf_size), static_cast<float> (leaf_size), static_cast<float> (leaf_size));
-  grid.setInputCloud (cloud);
-  grid.filter (result);
+    pcl::ApproximateVoxelGrid<pcl::PointXYZ> grid;
+    grid.setLeafSize (static_cast<float> (leaf_size), static_cast<float> (leaf_size), static_cast<float> (leaf_size));
+    grid.setInputCloud (cloud);
+    grid.filter (result);
 }
 
 
 //Draw the current particles
 bool drawParticles (pcl::visualization::PCLVisualizer& viz)
 {
-  ParticleFilter::PointCloudStatePtr particles = tracker_->getParticles ();
-  if (particles && new_cloud_)
-    {
-      //Set pointCloud with particle's points
-      pcl::PointCloud<pcl::PointXYZ>::Ptr particle_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-      for (size_t i = 0; i < particles->points.size (); i++)
-    {
-      pcl::PointXYZ point;
-          
-      point.x = particles->points[i].x;
-      point.y = particles->points[i].y;
-      point.z = particles->points[i].z;
-      particle_cloud->points.push_back (point);
-    }
-
-      //Draw red particles 
+    ParticleFilter::PointCloudStatePtr particles = tracker_->getParticles ();
+    if (particles && new_cloud_)
       {
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red_color (particle_cloud, 250, 99, 71);
-
-    if (!viz.updatePointCloud (particle_cloud, red_color, "particle cloud"))
-      viz.addPointCloud (particle_cloud, red_color, "particle cloud");
+        //Set pointCloud with particle's points
+        pcl::PointCloud<pcl::PointXYZ>::Ptr particle_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+        for (size_t i = 0; i < particles->points.size (); i++)
+      {
+        pcl::PointXYZ point;
+            
+        point.x = particles->points[i].x;
+        point.y = particles->points[i].y;
+        point.z = particles->points[i].z;
+        particle_cloud->points.push_back (point);
       }
-      return true;
-    }
-  else
-    {
-      return false;
-    }
+
+        //Draw red particles 
+        {
+      pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red_color (particle_cloud, 250, 99, 71);
+
+      if (!viz.updatePointCloud (particle_cloud, red_color, "particle cloud"))
+        viz.addPointCloud (particle_cloud, red_color, "particle cloud");
+        }
+        return true;
+      }
+    else
+      {
+        return false;
+      }
 }
 
 //Draw model reference point cloud
 void drawResult (pcl::visualization::PCLVisualizer& viz)
 {
-  ParticleXYZRPY result = tracker_->getResult ();
-  Eigen::Affine3f transformation = tracker_->toEigenMatrix (result);
+    ParticleXYZRPY result = tracker_->getResult ();
+    Eigen::Affine3f transformation = tracker_->toEigenMatrix (result);
 
-  //move close to camera a little for better visualization
-  transformation.translation () += Eigen::Vector3f (0.0f, 0.0f, -0.005f);
-  CloudPtr result_cloud (new Cloud ());
-  pcl::transformPointCloud<RefPointType> (*(tracker_->getReferenceCloud ()), *result_cloud, transformation);
+    //move close to camera a little for better visualization
+    transformation.translation () += Eigen::Vector3f (0.0f, 0.0f, -0.005f);
+    CloudPtr result_cloud (new Cloud ());
+    pcl::transformPointCloud<RefPointType> (*(tracker_->getReferenceCloud ()), *result_cloud, transformation);
 
-  //Draw blue model reference point cloud
-  {
-    pcl::visualization::PointCloudColorHandlerCustom<RefPointType> blue_color (result_cloud, 0, 0, 255);
+    //Draw blue model reference point cloud
+    {
+      pcl::visualization::PointCloudColorHandlerCustom<RefPointType> blue_color (result_cloud, 0, 0, 255);
 
-    if (!viz.updatePointCloud (result_cloud, blue_color, "resultcloud"))
-      viz.addPointCloud (result_cloud, blue_color, "resultcloud");
-  }
+      if (!viz.updatePointCloud (result_cloud, blue_color, "resultcloud")){
+        viz.addPointCloud (result_cloud, blue_color, "resultcloud");
+      }
+    }
 }
 
 //visualization's callback function
 void viz_cb (pcl::visualization::PCLVisualizer& viz)
 {
-  // boost::mutex::scoped_lock lock (mtx_);
-    
-  // if (!cloud_pass_)
-  //   {
-  //     boost::this_thread::sleep (boost::posix_time::seconds (1));
-  //     return;
-  //  }
+    boost::mutex::scoped_lock lock (mtx_);
+      
+    if (!cloud_pass_)
+      {
+        boost::this_thread::sleep (boost::posix_time::seconds (1));
+        return;
+     }
 
-  //Draw downsampled point cloud from sensor    
-  if (cloud_pass_downsampled_)
-    {
-      CloudPtr cloud_pass;
-      cloud_pass = cloud_pass_downsampled_;
-    
-      if (!viz.updatePointCloud (cloud_pass, "cloudpass"))
-    {
-      viz.addPointCloud (cloud_pass, "cloudpass");
-      viz.resetCameraViewpoint ("cloudpass");
-    }
-      bool ret = drawParticles (viz);
-      if (ret)
-        drawResult (viz);
-    }
-  new_cloud_ = false;
+    //Draw downsampled point cloud from sensor    
+    if (cloud_pass_downsampled_)
+      {
+        CloudPtr cloud_pass;
+        cloud_pass = cloud_pass_downsampled_;
+
+        if (!viz.updatePointCloud (cloud_pass, "cloudpass"))
+        {
+          viz.addPointCloud (cloud_pass, "cloudpass");
+          viz.resetCameraViewpoint ("cloudpass");
+        }
+        bool ret = drawParticles (viz);
+        if (ret){
+          drawResult (viz);
+        }
+      }
+    new_cloud_ = false;
 }
 
 
@@ -173,74 +176,65 @@ void cloudcallback (const my_new_msgs::clustering& msg ){
 
     sensor_msgs::PointCloud2 cluster_msgs;
 
+    pcl::PCLPointCloud2 cloud2;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+    //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pass_(new pcl::PointCloud<pcl::PointXYZ> ());
+    cloud_pass_.reset(new Cloud);
+    
     for (size_t i=0; i< msg.clusters.size(); i++){
 
-        pcl::PCLPointCloud2 cloud2;
-        pcl_conversions::toPCL( msg.clusters[i] , cloud2);
+      pcl_conversions::toPCL( msg.clusters[i] , cloud2);
 
-        pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
-        pcl::fromPCLPointCloud2(cloud2, *target_cloud);
+      pcl::fromPCLPointCloud2(cloud2, *target_cloud);
+      pcl::PCLPointCloud2 newcloud2;
+      pcl::toPCLPointCloud2(*target_cloud, newcloud2);
+      pcl_conversions::fromPCL(newcloud2, cluster_msgs);
 
-        // target_cloud.reset(new Cloud());
-        pcl::PCLPointCloud2 newcloud2;
-        pcl::toPCLPointCloud2(*target_cloud, newcloud2);
-        pcl_conversions::fromPCL(newcloud2, cluster_msgs);
-        sensor_msgs::PointCloud2 tmp = sensor_msgs::PointCloud2(accumulator);
-        pcl::concatenatePointCloud( cluster_msgs, tmp, accumulator);
+      sensor_msgs::PointCloud2 tmp = sensor_msgs::PointCloud2(accumulator);
+      pcl::concatenatePointCloud( cluster_msgs, tmp, accumulator);
 
-        pcl::PCLPointCloud2 pcl2;
-        pcl_conversions::toPCL( accumulator , pcl2);
-
-        //target_cloud.reset(new Cloud());
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pass_(new pcl::PointCloud<pcl::PointXYZ> ());
-        pcl::fromPCLPointCloud2(pcl2, *cloud_pass_);
+      pcl::PCLPointCloud2 pcl2;
+      pcl_conversions::toPCL( accumulator , pcl2);
+      pcl::fromPCLPointCloud2(pcl2, *cloud_pass_);
     }
 
-    //prepare the model of tracker's target
-    for (size_t j=0; msg.clusters.size(); j=0){
+    for (size_t j=0; j < msg.clusters.size() ; j++){
 
-        pcl::PCLPointCloud2 cloud2;
-        pcl_conversions::toPCL( msg.clusters[j] , cloud2);
+      pcl_conversions::toPCL( msg.clusters[j], cloud2);
+      pcl::fromPCLPointCloud2(cloud2, *target_cloud);
 
+      Eigen::Vector4f c;
+      Eigen::Affine3f trans = Eigen::Affine3f::Identity ();
+      CloudPtr transed_ref (new Cloud);
+      CloudPtr transed_ref_downsampled (new Cloud);
 
-        // pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
-        target_cloud.reset(new Cloud());
-        pcl::fromPCLPointCloud2(cloud2, *target_cloud);
+      pcl::compute3DCentroid<RefPointType> (*target_cloud, c);
 
-        Eigen::Vector4f c;
-        Eigen::Affine3f trans = Eigen::Affine3f::Identity ();
-        CloudPtr transed_ref (new Cloud);
-        CloudPtr transed_ref_downsampled (new Cloud);
+      trans.translation ().matrix () = Eigen::Vector3f (c[0], c[1], c[2]);
 
-        pcl::compute3DCentroid<RefPointType> (*target_cloud, c);
+      pcl::transformPointCloud<RefPointType> (*target_cloud, *transed_ref, trans.inverse());
 
-        trans.translation ().matrix () = Eigen::Vector3f (c[0], c[1], c[2]);
+      gridSampleApprox (transed_ref, *transed_ref_downsampled, downsampling_grid_size_);
 
-        pcl::transformPointCloud<RefPointType> (*target_cloud, *transed_ref, trans.inverse());
+      tracker_->setReferenceCloud (transed_ref_downsampled);
 
-        gridSampleApprox (transed_ref, *transed_ref_downsampled, downsampling_grid_size_);
-
-
-        //set reference model and trans
-        tracker_->setReferenceCloud (transed_ref_downsampled);
-
-        tracker_->setTrans (trans);
+      tracker_->setTrans (trans);
     }
+
 
     CloudConstPtr cloud;
-    // cloud_pass_.reset (new Cloud);
     cloud_pass_downsampled_.reset (new Cloud);
-;
+
     filterPassThrough (cloud, *cloud_pass_);
+
     gridSampleApprox (cloud_pass_, *cloud_pass_downsampled_, downsampling_grid_size_);
-;
 
-         //Track the object
+    //Track the object
     tracker_->setInputCloud (cloud_pass_downsampled_);
-;
-
-    //tracker_->compute ();
-;
+    // double start = pcl::getTime();
+    // // tracker_->compute ();
+    // double end = pcl::getTime();
+    //set reference model and trans
     new_cloud_ = true;
 
 }
@@ -254,17 +248,8 @@ int main (int argc, char** argv)
 
     //Setup OpenNIGrabber and viewer
     pcl::visualization::CloudViewer* viewer_ = new pcl::visualization::CloudViewer("PCL OpenNI Tracking Viewer");
-    // pcl::Grabber* interface = new pcl::OpenNIGrabber (device_id);
-    // boost::function<void (const CloudConstPtr&)> f =
-    //   boost::bind (&cloud_cb, _1);
-    // interface->registerCallback (f);
-      
     viewer_->runOnVisualizationThread (boost::bind(&viz_cb, _1), "viz_cb");
 
-    //Start viewer and object tracking
-    // interface->start();
-
-    //interface->stop();
  //Set parameters
     new_cloud_ = false;
     downsampling_grid_size_ = 0.002;
@@ -322,9 +307,7 @@ int main (int argc, char** argv)
     tracker_->setCloudCoherence (coherence);
 
 
-    while (ros::ok() /*&& !viewer_->wasStopped ()*/){
+    while (ros::ok() ){
       ros::spinOnce();
-      //boost::this_thread::sleep(boost::posix_time::seconds(1));
-      //ros::sleep(ros::Duration(1));
     }
 }
