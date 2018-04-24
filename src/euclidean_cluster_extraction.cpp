@@ -29,30 +29,22 @@ int maxIterations;
 int minClusterSize, maxClusterSize;
 
 
-void cloud_callback (const sensor_msgs::PointCloud2& msg)
+void cloud_callback (const my_new_msgs::clustering& c_)
 {
+
     pcl::PCLPointCloud2 cloud2;
-    pcl_conversions::toPCL( msg , cloud2);
+
+    pcl_conversions::toPCL( c_.clusters[0] , cloud2);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ> ());
     pcl::fromPCLPointCloud2(cloud2, *cloud);
 
-//    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
     std::cout << "PointCloud before filtering has: " << cloud->points.size () << " data points." << std::endl; //*
-
-    // Create the filtering object: downsample the dataset using a leaf size of 1cm
-    // pcl::VoxelGrid<pcl::PointXYZ> vg;
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    // vg.setInputCloud (cloud);
-    // vg.setLeafSize (x, y, z);
-    // vg.filter (*cloud_filtered);
-    // std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl; //*
 
     // Create the segmentation object for the planar model and set all the parameters
     pcl::SACSegmentation<pcl::PointXYZ> seg;
     pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
     pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZ> ());
-    pcl::PCDWriter writer;
     seg.setOptimizeCoefficients (true);
     seg.setModelType (pcl::SACMODEL_PLANE);
     seg.setMethodType (pcl::SAC_RANSAC);
@@ -60,34 +52,7 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg)
     seg.setDistanceThreshold (distanceThreshold);
     seg.setInputCloud (cloud);
     seg.segment (*inliers, *coefficients);
-    //int i=0, nr_points = (int) cloud_filtered->points.size ();
 
-    // while (cloud_filtered->points.size () > 0.3 * nr_points)
-    // {
-    //     // Segment the largest planar component from the remaining cloud
-    //     seg.setInputCloud (cloud_filtered);
-    //     seg.segment (*inliers, *coefficients);
-    //     if (inliers->indices.size () == 0)
-    //     {
-    //         std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
-    //         break;
-    //     }
-
-    //     // Extract the planar inliers from the input cloud
-    //     pcl::ExtractIndices<pcl::PointXYZ> extract;
-    //     extract.setInputCloud (cloud_filtered);
-    //     extract.setIndices (inliers);
-    //     extract.setNegative (false);
-
-    //     // Get the points associated with the planar surface
-    //     extract.filter (*cloud_plane);
-    //     std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
-
-    //     // Remove the planar inliers, extract the rest
-    //     extract.setNegative (true);
-    //     extract.filter (*cloud_f);
-    //     *cloud_filtered = *cloud_f;
-    // }
 
     // Creating the KdTree object for the search method of the extraction
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -106,7 +71,7 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg)
 
     my_new_msgs::clustering msg_;
 
-    std::vector<sensor_msgs::PointCloud2 > clouds; 
+
 
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
@@ -128,7 +93,7 @@ void cloud_callback (const sensor_msgs::PointCloud2& msg)
         pcl::toPCLPointCloud2(*cloud_cluster, cloud2);
 
         pcl_conversions::fromPCL(cloud2, msgout);
-        clouds.push_back(msgout);
+
         msg_.clusters.push_back(msgout);
 
 
@@ -141,20 +106,16 @@ int main (int argc, char** argv){
     ros::init (argc, argv, "cluster_extraction");
     ros::NodeHandle n_;
 
-    // n_.param("new_point_pointmsg/x", x, 0.01f);
-    // n_.param("new_point_pointmsg/y", y, 0.01f);
-    // n_.param("new_point_pointmsg/z", z, 0.01f);
-
 
     n_.param("new_point_pointmsg/setMaxIterations", maxIterations, 100);
     n_.param("new_point_pointmsg/setDistanceThreshold", distanceThreshold, 0.01);
-    n_.param("new_point_pointmsg/setClusterTolerance", clusterTolerance, 0.15);
+    n_.param("new_point_pointmsg/setClusterTolerance", clusterTolerance, 0.4);
     n_.param("new_point_pointmsg/setMinClusterSize", minClusterSize, 10);
     n_.param("new_point_pointmsg/setMaxClusterSize", maxClusterSize, 25000);
 
     std::string topic;
     std::string out_topic;
-    n_.param("new_point_pointmsg/cloud_topic", topic, std::string("/new_point_cloud"));
+    n_.param("new_point_pointmsg/cloud_topic", topic, std::string("/my_pointcloud"));
     n_.param("new_point_pointmsg/output_cloud_topic", out_topic, std::string("/new_pcl"));
 
     ros::Subscriber sub = n_.subscribe (topic, 1, cloud_callback);
