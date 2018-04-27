@@ -34,6 +34,7 @@ void cloud_callback (const my_new_msgs::clustering& c_)
 
     pcl::PCLPointCloud2 cloud2;
 
+
     pcl_conversions::toPCL( c_.clusters[0] , cloud2);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ> ());
     pcl::fromPCLPointCloud2(cloud2, *cloud);
@@ -95,6 +96,9 @@ void cloud_callback (const my_new_msgs::clustering& c_)
         pcl_conversions::fromPCL(cloud2, msgout);
 
         msg_.clusters.push_back(msgout);
+        msg_.factor = c_.factor;
+        msg_.overlap = c_.overlap;
+        msg_.first_stamp = c_.first_stamp; 
 
 
     }
