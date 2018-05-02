@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(euclidean_clustering)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -52,4 +52,8 @@ target_link_libraries(colored_clusters ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(tracking src/tracking.cpp)
 target_link_libraries(tracking ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(cluster_id src/cluster_id.cpp)
+target_link_libraries(cluster_id ${catkin_LIBRARIES} )
+
 
