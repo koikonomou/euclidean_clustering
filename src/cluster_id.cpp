@@ -54,6 +54,10 @@ void callback(const my_new_msgs::clustering& msg){
 int main ( int argc, char** argv){
     ros::init (argc, argv, "cluster_id");
     ros::NodeHandle n_;
+
+    std::string input_topic;
+    std::string out_topic;
+    
     n_.param("cluster_id/size", size , 2);
     n_.param("cluster_id/overlap", overlap , 0.2);
     n_.param("cluster_id/input_topic", input_topic , std::string("/new_pcl"));
