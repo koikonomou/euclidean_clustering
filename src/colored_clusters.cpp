@@ -32,7 +32,7 @@ void cluster_callback (const my_new_msgs::clustering& msg){
         for(size_t j=0; j < cloud.points.size(); j++){
             uint8_t r = 255 - 25 *i;
             uint8_t g = 90 + 40 *i;
-            uint8_t b = 0; //1024 * rand () / (RAND_MAX + 1.0f);
+            uint8_t b = 40; 
             int32_t rgb = (r << 16) | (g << 8) | b;
             cloud.points[j].rgb = *(float*)(&rgb);
         }
