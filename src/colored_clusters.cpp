@@ -21,7 +21,7 @@ void cluster_callback (const my_new_msgs::clustering& msg){
 
     sensor_msgs::PointCloud2 cluster_msgs;
 
-    for (size_t i=0; i< msg.clusters.size(); i++){
+    for (size_t i=0; i < msg.clusters.size(); i++){
 
         pcl::PCLPointCloud2 cloud2;
         pcl_conversions::toPCL( msg.clusters[i] , cloud2);
@@ -29,12 +29,27 @@ void cluster_callback (const my_new_msgs::clustering& msg){
         pcl::PointCloud<pcl::PointXYZRGB> cloud;
         pcl::fromPCLPointCloud2(cloud2, cloud);
 
-        for(size_t j=0; j < cloud.points.size(); j++){
-            uint8_t r = 255 - 25 *i;
-            uint8_t g = 90 + 40 *i;
-            uint8_t b = 40; 
-            int32_t rgb = (r << 16) | (g << 8) | b;
-            cloud.points[j].rgb = *(float*)(&rgb);
+        if (msg.cluster_id.size() > 0 ){
+            for (int u=0; u < msg.cluster_id.size(); u++){
+                ROS_WARN("%u", u);
+
+                for(size_t j=0; j < cloud.points.size(); j++){
+                    uint8_t r = 255 - 25 * u^8 *i;
+                    uint8_t g = 90 + 40 * u^8 *i;
+                    uint8_t b = 40; 
+                    int32_t rgb = (r << 16) | (g << 8) | b;
+                    cloud.points[j].rgb = *(float*)(&rgb);
+                }
+            }
+        }
+        else {
+            for(size_t j=0; j < cloud.points.size(); j++){
+                uint8_t r = 255 - 25 * i;
+                uint8_t g = 90 + 40 * i;
+                uint8_t b = 40; 
+                int32_t rgb = (r << 16) | (g << 8) | b;
+                cloud.points[j].rgb = *(float*)(&rgb);
+            }
         }
         pcl::PCLPointCloud2 clouds;
         pcl::toPCLPointCloud2(cloud, clouds);
@@ -45,6 +60,7 @@ void cluster_callback (const my_new_msgs::clustering& msg){
 
         pcl::concatenatePointCloud( cluster_msgs, tmp, accumulator);
     }
+
     pub.publish(accumulator);
 }
 
