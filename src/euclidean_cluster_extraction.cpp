@@ -108,20 +108,20 @@ void cloud_callback (const my_new_msgs::clustering& c_)
 }
 
 int main (int argc, char** argv){
-    ros::init (argc, argv, "cluster_extraction");
+    ros::init (argc, argv, "euclidean_cluster_extraction");
     ros::NodeHandle n_;
 
 
-    n_.param("new_point_pointmsg/setMaxIterations", maxIterations, 100);
-    n_.param("new_point_pointmsg/setDistanceThreshold", distanceThreshold, 0.01);
-    n_.param("new_point_pointmsg/setClusterTolerance", clusterTolerance, 0.4);
-    n_.param("new_point_pointmsg/setMinClusterSize", minClusterSize, 10);
-    n_.param("new_point_pointmsg/setMaxClusterSize", maxClusterSize, 25000);
+    n_.param("euclidean_cluster_extraction/setMaxIterations", maxIterations, 100);
+    n_.param("euclidean_cluster_extraction/setDistanceThreshold", distanceThreshold, 0.01);
+    n_.param("euclidean_cluster_extraction/setClusterTolerance", clusterTolerance, 0.4);
+    n_.param("euclidean_cluster_extraction/setMinClusterSize", minClusterSize, 10);
+    n_.param("euclidean_cluster_extraction/setMaxClusterSize", maxClusterSize, 25000);
 
     std::string topic;
     std::string out_topic;
-    n_.param("new_point_pointmsg/cloud_topic", topic, std::string("/my_pointcloud"));
-    n_.param("new_point_pointmsg/output_cloud_topic", out_topic, std::string("/new_pcl"));
+    n_.param("euclidean_cluster_extraction/cloud_topic", topic, std::string("/my_pointcloud"));
+    n_.param("euclidean_cluster_extraction/output_cloud_topic", out_topic, std::string("/new_pcl"));
 
     ros::Subscriber sub = n_.subscribe (topic, 1, cloud_callback);
 
