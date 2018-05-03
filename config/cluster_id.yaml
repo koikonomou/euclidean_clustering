@@ -1,0 +1,4 @@
+input_topic: /new_pcl
+out_topic: /cluster_id
+size: 2
+overlap: 0.2

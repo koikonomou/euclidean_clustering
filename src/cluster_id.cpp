@@ -27,7 +27,7 @@ void callback(const my_new_msgs::clustering& msg){
             offset = (1.0 - overlap ) * (double)(ros::Duration( v_[i].first_stamp - v_[0].first_stamp ).toSec()) * (double)(msg.factor) ;
         }
         else{
-            offset = 0.0 ;
+            offset = 0.0;
         }
 
         for (unsigned j=0; j < v_[i].clusters.size(); j++){
@@ -56,9 +56,11 @@ int main ( int argc, char** argv){
     ros::NodeHandle n_;
     n_.param("cluster_id/size", size , 2);
     n_.param("cluster_id/overlap", overlap , 0.2);
+    n_.param("cluster_id/input_topic", input_topic , std::string("/new_pcl"));
+    n_.param("cluster_id/out_topic", out_topic , std::string("/cluster_id"));
 
-    ros::Subscriber sub = n_.subscribe("/new_pcl", 1 , callback);
-    pub = n_.advertise<my_new_msgs::clustering>("cluster_id", 1);
+    ros::Subscriber sub = n_.subscribe(input_topic, 1 , callback);
+    pub = n_.advertise<my_new_msgs::clustering>(out_topic, 1);
     ros::spin ();
 
 

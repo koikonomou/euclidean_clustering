@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+    <node pkg="euclidean_clustering" type="cluster_id" respawn="false" name="cluster_id" output="screen">
+        <rosparam file="$(find euclidean_clustering)/config/cluster_id.yaml" command="load" />
+    </node>
+</launch>
