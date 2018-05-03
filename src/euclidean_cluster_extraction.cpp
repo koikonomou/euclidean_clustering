@@ -99,6 +99,7 @@ void cloud_callback (const my_new_msgs::clustering& c_)
         msg_.factor = c_.factor;
         msg_.overlap = c_.overlap;
         msg_.first_stamp = c_.first_stamp; 
+        msg_.num_scans = c_.num_scans ;
 
 
     }
