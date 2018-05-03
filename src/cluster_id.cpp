@@ -7,7 +7,6 @@
 
 int size;
 double overlap, offset;
-ros::Time prev_first_stamp ;
 ros::Publisher pub;
 std::vector<my_new_msgs::clustering> v_;
 
@@ -25,12 +24,11 @@ void callback(const my_new_msgs::clustering& msg){
     for (unsigned i=0; i < v_.size(); i++){
         double offset; 
         if ( i > 0 ){
-            offset = (1.0 - overlap ) * (double)(ros::Duration( v_[i].first_stamp - prev_first_stamp ).toSec()) * (double)(msg.factor) ;
+            offset = (1.0 - overlap ) * (double)(ros::Duration( v_[i].first_stamp - v_[0].first_stamp ).toSec()) * (double)(msg.factor) ;
         }
         else{
             offset = 0.0 ;
         }
-        prev_first_stamp = v_[i].first_stamp ;
 
         for (unsigned j=0; j < v_[i].clusters.size(); j++){
             sensor_msgs::PointCloud cloud;
@@ -38,7 +36,6 @@ void callback(const my_new_msgs::clustering& msg){
 
             for (unsigned k=0; k < cloud.points.size(); k++){
                 cloud.points[k].z += - offset;
-
             }
 
             sensor_msgs::PointCloud2 pc2;
