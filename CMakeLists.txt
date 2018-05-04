@@ -56,4 +56,5 @@ target_link_libraries(tracking ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${Boost_LIBR
 add_executable(cluster_id src/cluster_id.cpp)
 target_link_libraries(cluster_id ${catkin_LIBRARIES} )
 
-
+add_executable(Tracking src/Tracking.cpp)
+target_link_libraries(Tracking ${catkin_LIBRARIES} ${PCL_LIBRARIES})
