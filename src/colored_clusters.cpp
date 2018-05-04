@@ -65,15 +65,15 @@ void cluster_callback (const my_new_msgs::clustering& msg){
 }
 
 int main (int argc, char** argv){
-    ros::init (argc, argv, "colored_cluster");
+    ros::init (argc, argv, "colored_clusters");
     ros::NodeHandle n_;
     pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
 
 
     std::string input_topic;
     std::string out_topic;
-    n_.param("color_clustered/cloud_topic",input_topic, std::string("/new_pcl"));
-    n_.param("color_clustered/output_cloud_topic", out_topic, std::string("/rgb_cluster"));
+    n_.param("colored_clusters/input_topic",input_topic, std::string("/new_pcl"));
+    n_.param("colored_clusters/out_topic", out_topic, std::string("/rgb_cluster"));
 
     ros::Subscriber sub = n_.subscribe (input_topic, 1, cluster_callback);
 
