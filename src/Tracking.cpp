@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <cmath>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/common/centroid.h>
@@ -12,14 +13,11 @@
 #include <sensor_msgs/point_cloud_conversion.h>
 
 class Tracker{
-private:
-    my_new_msgs::clustering base_msg;
-    int max_id;
 public:
 
-    int size, id;
+    int max_id;
+    int size;
     double overlap, offset ;
-    double threshold_x , threshold_y , threshold_z ;
 
     ros::Publisher pub;
     ros::Subscriber sub;
@@ -27,8 +25,10 @@ public:
     std::string out_topic;
     std::string input_topic;
 
+    my_new_msgs::clustering base_msg;
+    std::vector<my_new_msgs::clustering> v_;
 
-    Tracker (my_new_msgs::clustering base_msg, int max_id ) : base_msg(base_msg) , max_id(max_id) { }
+    Tracker (const my_new_msgs::clustering base_msg, int max_id ) { }
 
     void track (const my_new_msgs::clustering msg ) {
         std::vector<Eigen::Vector4f> base_centroid_vec;
@@ -61,12 +61,32 @@ public:
             msg_centroid_vec.push_back(base_centroid);
         }
 
-        for (int i = 0; i < base_centroid_vec.size(); i++){
-            std::vector<int> dist;
+        for (int i=0; i < base_centroid_vec.size(); i++){
+            Eigen::Vector4f dist;
+            int dist_x , dist_y , dist_z;
+
             for (int j=0; j < msg_centroid_vec.size(); j++){
-/*              dist vector msg[i]-msg[j]
-                k = min_dist
-                msg[k].id = base_id[i]*/
+               dist = base_centroid_vec[i] - msg_centroid_vec[j];
+               dist_x = dist(0) ;
+               dist_y = dist(1) ;
+               dist_z = dist(2) ;
+
+               int real_dist = sqrt( dist_x^2 + dist_y^2 + dist_z^2);
+               std::vector<int> dist_vec;
+               dist_vec.push_back(real_dist);
+
+               int min_dist, min_dist_id;
+
+               if ( j > 0 ){
+                   if ( dist_vec[j] < min_dist ){
+                        min_dist = dist_vec[j];
+                        min_dist_id = j ;
+                        msg.cluster_id == base_msg.cluster_id ; 
+                    }
+               }
+                else {
+                    min_dist = dist_vec[0];
+                }
 
             }
 
@@ -84,24 +104,25 @@ public:
 
 void Tracker::callback (const my_new_msgs::clustering& msg ){
 
-    int cnt = 0;
-    int max_id = 0;
+    // int cnt = 0;
+    // int max_id = 0;
 
     my_new_msgs::clustering c_;
     sensor_msgs::PointCloud cloud;
-    std::vector<my_new_msgs::clustering> v_;
 
     v_.push_back(msg);
 
     if (v_.size() > size){
         v_.erase(v_.begin());
     }
+
     Tracker* t = new Tracker( v_[0] , max_id ) ;
 
     for (unsigned i=0; i < v_.size(); i++){
         double offset;
         if ( i > 0 ){
             offset = ( 1.0 - overlap ) * (double)( ros::Duration( v_[i].first_stamp - v_[0].first_stamp ).toSec()) * (double)( msg.factor );
+
         }
         else{
             offset = 0.0;
@@ -118,11 +139,11 @@ void Tracker::callback (const my_new_msgs::clustering& msg ){
             sensor_msgs::PointCloud2 pc2;
             sensor_msgs::convertPointCloudToPointCloud2( cloud , pc2 );
             c_.clusters.push_back( pc2 );
-            c_.cluster_id.push_back( cnt );
+            c_.cluster_id.push_back( i );
 
             std::cout << " Cluster_id : " << c_.cluster_id.size() << " with " << cloud.points.size() << " data points "<< std::endl;
         }
-        cnt++;
+        // cnt++;
 
     }
 
@@ -135,9 +156,7 @@ void Tracker::init(){
 
     n_.param("Tracking/size", size , 2);
     n_.param("Tracking/overlap", overlap , 0.2);
-    n_.param("Tracking/threshold_x", threshold_x , 0.5);
-    n_.param("Tracking/threshold_y", threshold_y , 0.5);
-    n_.param("Tracking/threshold_z", threshold_z , 0.5);
+
     n_.param("Tracking/out_topic", out_topic , std::string("/Tracking"));
     n_.param("Tracking/input_topic", input_topic , std::string("/new_pcl"));
 
@@ -151,8 +170,12 @@ void Tracker::init(){
 int main(int argc, char** argv){
 
     ros::init(argc, argv, "Tracking");
+    my_new_msgs::clustering c;
+    int max_id ;
 
-    // t->init();
+    Tracker t( c, max_id );
+
+    t.init();
     ros::spin();
 
 }
