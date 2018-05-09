@@ -1,5 +1,5 @@
-#include <ros/ros.h>
 #include <cmath>
+#include <ros/ros.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/common/centroid.h>
@@ -12,11 +12,10 @@
 #include <sensor_msgs/ChannelFloat32.h>
 #include <sensor_msgs/point_cloud_conversion.h>
 
-class Tracker{
+class Centroid_tracking{
 public:
 
-    int max_id;
-    int size;
+    int size , max_id;
     double overlap, offset ;
 
     ros::Publisher pub;
@@ -28,20 +27,23 @@ public:
     my_new_msgs::clustering base_msg;
     std::vector<my_new_msgs::clustering> v_;
 
-    Tracker (const my_new_msgs::clustering base_msg, int max_id ) { }
+    Centroid_tracking (const my_new_msgs::clustering base_msg, int max_id ) { }
 
-    void track (const my_new_msgs::clustering msg ) {
-        std::vector<Eigen::Vector4f> base_centroid_vec;
-        std::vector<Eigen::Vector4f> msg_centroid_vec;
+    void track ( my_new_msgs::clustering& msg ) {
+
         std::vector<int> base_id;
+        std::vector<Eigen::Vector4f> msg_centroid_vec;
+        std::vector<Eigen::Vector4f> base_centroid_vec;
 
-        for (int i = 0; i < base_msg.clusters.size(); i++)
+        for (int i=0; i < base_msg.clusters.size(); i++)
         {
             pcl::PointXYZ centroidpoint ;
             pcl::PCLPointCloud2 pc2;
             pcl_conversions::toPCL ( base_msg.clusters[i] , pc2 );
+
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
+
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
 
@@ -49,45 +51,50 @@ public:
             base_id.push_back(base_msg.cluster_id[i]);
         }
 
-        for (int i = 0; i < msg.clusters.size(); i++)
+        for (int i=0; i < msg.clusters.size(); i++)
         {
             pcl::PointXYZ centroidpoint ;
             pcl::PCLPointCloud2 pc2;
             pcl_conversions::toPCL ( msg.clusters[i] , pc2 );
+
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
+
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
+
             msg_centroid_vec.push_back(base_centroid);
         }
 
-        for (int i=0; i < base_centroid_vec.size(); i++){
+        for (int i=0; i < base_centroid_vec.size(); i++)
+        {
             Eigen::Vector4f dist;
             int dist_x , dist_y , dist_z;
 
-            for (int j=0; j < msg_centroid_vec.size(); j++){
-               dist = base_centroid_vec[i] - msg_centroid_vec[j];
-               dist_x = dist(0) ;
-               dist_y = dist(1) ;
-               dist_z = dist(2) ;
+            for (int j=0; j < msg_centroid_vec.size(); j++)
+            {
+                dist = base_centroid_vec[i] - msg_centroid_vec[j];
+                dist_x = dist(0) ;
+                dist_y = dist(1) ;
+                dist_z = dist(2) ;
 
-               int real_dist = sqrt( dist_x^2 + dist_y^2 + dist_z^2);
-               std::vector<int> dist_vec;
-               dist_vec.push_back(real_dist);
+                double real_dist ;
+                real_dist = sqrt( pow( dist_x , 2 ) + pow( dist_y, 2 ) + pow( dist_z , 2 ) );
 
-               int min_dist, min_dist_id;
+                std::vector<double> dist_vec;
+                dist_vec.push_back( real_dist );
 
-               if ( j > 0 ){
-                   if ( dist_vec[j] < min_dist ){
+                double min_dist;
+
+                if ( j > 0 ){
+                    if ( dist_vec[j] < min_dist ){
                         min_dist = dist_vec[j];
-                        min_dist_id = j ;
-                        msg.cluster_id == base_msg.cluster_id ; 
+                        msg.cluster_id[j] = base_id[i] ;
                     }
-               }
+                }
                 else {
                     min_dist = dist_vec[0];
                 }
-
             }
 
         }
@@ -95,17 +102,13 @@ public:
 
     }
 
-
     void init();
 
     void callback (const my_new_msgs::clustering& msg );
 
 };
 
-void Tracker::callback (const my_new_msgs::clustering& msg ){
-
-    // int cnt = 0;
-    // int max_id = 0;
+void Centroid_tracking::callback (const my_new_msgs::clustering& msg ){
 
     my_new_msgs::clustering c_;
     sensor_msgs::PointCloud cloud;
@@ -116,7 +119,7 @@ void Tracker::callback (const my_new_msgs::clustering& msg ){
         v_.erase(v_.begin());
     }
 
-    Tracker* t = new Tracker( v_[0] , max_id ) ;
+    Centroid_tracking* t = new Centroid_tracking( v_[0] , max_id ) ;
 
     for (unsigned i=0; i < v_.size(); i++){
         double offset;
@@ -143,7 +146,6 @@ void Tracker::callback (const my_new_msgs::clustering& msg ){
 
             std::cout << " Cluster_id : " << c_.cluster_id.size() << " with " << cloud.points.size() << " data points "<< std::endl;
         }
-        // cnt++;
 
     }
 
@@ -151,7 +153,7 @@ void Tracker::callback (const my_new_msgs::clustering& msg ){
 
 }
 
-void Tracker::init(){
+void Centroid_tracking::init(){
     ros::NodeHandle n_;
 
     n_.param("Tracking/size", size , 2);
@@ -161,7 +163,7 @@ void Tracker::init(){
     n_.param("Tracking/input_topic", input_topic , std::string("/new_pcl"));
 
 
-    sub = n_.subscribe( input_topic, 1 , &Tracker::callback, this);
+    sub = n_.subscribe( input_topic, 1 , &Centroid_tracking::callback, this);
     pub = n_.advertise<my_new_msgs::clustering>( out_topic, 1);
 
 }
@@ -170,10 +172,11 @@ void Tracker::init(){
 int main(int argc, char** argv){
 
     ros::init(argc, argv, "Tracking");
-    my_new_msgs::clustering c;
-    int max_id ;
 
-    Tracker t( c, max_id );
+    int max_id ;
+    my_new_msgs::clustering c;
+
+    Centroid_tracking t( c, max_id );
 
     t.init();
     ros::spin();
