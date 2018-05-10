@@ -15,19 +15,15 @@
 class Centroid_tracking{
 public:
 
-    int size , max_id;
-    double overlap, offset ;
-
-    ros::Publisher pub;
-    ros::Subscriber sub;
-
-    std::string out_topic;
-    std::string input_topic;
+    int max_id;
 
     my_new_msgs::clustering base_msg;
-    std::vector<my_new_msgs::clustering> v_;
 
-    Centroid_tracking (const my_new_msgs::clustering base_msg, int max_id ) : base_msg(base_msg) , max_id(max_id){ }
+    Centroid_tracking ( my_new_msgs::clustering& base_msg, int max_id ) 
+    {
+        this->base_msg = base_msg ;
+        this->max_id = max_id ;
+    }
 
     void track ( my_new_msgs::clustering& msg ) {
 
@@ -47,9 +43,8 @@ public:
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
 
-            base_centroid_vec.push_back(base_centroid);
-            base_id.push_back(base_msg.cluster_id[i]);
-            // ROS_WARN("%lu", base_id.size());
+            base_centroid_vec.push_back( base_centroid );
+            base_id.push_back( base_msg.cluster_id[i] );
         }
 
         for (int i=0; i < msg.clusters.size(); i++)
@@ -70,7 +65,10 @@ public:
         for (int i=0; i < base_centroid_vec.size(); i++)
         {
             Eigen::Vector4f dist;
-            int dist_x , dist_y , dist_z;
+            double dist_x , dist_y , dist_z;
+
+            int min_index = -1;
+            double min_dist = std::numeric_limits<double>::max() ;
 
             for (int j=0; j < msg_centroid_vec.size(); j++)
             {
@@ -85,33 +83,30 @@ public:
                 std::vector<double> dist_vec;
                 dist_vec.push_back( real_dist );
 
-                double min_dist;
-                int kati;
-
-                if ( j > 0 ){
-                    if ( dist_vec[j] < min_dist && dist_vec[j] < kati){
-                        // min_dist = dist_vec[j];
-                        msg.cluster_id[j] = base_id[i] ;
-                    }
-                }
-                else {
-                    min_dist = dist_vec[0];
-                    msg.cluster_id[j] = base_id[i] + 1 ;
+                // find the min_distance between base_msg[i] and any of the clusters in msg 
+                if ( dist_vec[j] < min_dist ){
+                     min_dist = dist_vec[j];
+                     min_index = j ;
                 }
             }
 
+            msg.cluster_id[min_index] = base_id [i] ;
+
         }
-
-
     }
-
-    void init();
-
-    void callback (const my_new_msgs::clustering& msg );
 
 };
 
-void Centroid_tracking::callback (const my_new_msgs::clustering& msg ){
+
+ros::Publisher pub;
+ros::Subscriber sub;
+
+int size, max_id;
+double overlap, offset ;
+
+std::vector<my_new_msgs::clustering> v_;
+
+void callback (const my_new_msgs::clustering& msg ){
 
     my_new_msgs::clustering c_;
     sensor_msgs::PointCloud cloud;
@@ -119,19 +114,28 @@ void Centroid_tracking::callback (const my_new_msgs::clustering& msg ){
 
     v_.push_back(msg);
 
+    Centroid_tracking* t;
+
     if (v_.size() > size){
         v_.erase(v_.begin());
+
+        for (int i=0 ; i < v_[0].clusters.size(); i++){
+            v_[0].cluster_id.push_back(i);
+        }
+
+        t = new Centroid_tracking( v_[0] , max_id ) ;
+    }
+    else {
+        t = NULL;
     }
 
-    Centroid_tracking* t = new Centroid_tracking( v_[0] , max_id ) ;
-
-    for (unsigned i=0; i < v_.size(); i++){
+    for (unsigned i=0; i < v_.size(); i++)
+    {
         double offset;
         if ( i > 0 ){
             offset = ( 1.0 - overlap ) * (double)( ros::Duration( v_[i].first_stamp - v_[0].first_stamp ).toSec()) * (double)( msg.factor );
-
         }
-        else{
+        else {
             offset = 0.0;
         }
 
@@ -148,29 +152,15 @@ void Centroid_tracking::callback (const my_new_msgs::clustering& msg ){
             c_.clusters.push_back( pc2 );
             c_.cluster_id.push_back( j );
 
-            // track(c_);
-
-            std::cout << " Msg " << i << " cluster size " << v_[i].clusters.size() << " Cluster_id : " << c_.cluster_id[j] << " with " << cloud.points.size() << " data points "<< std::endl;
+            std::cout << " Msg " << i << " num of clusters " << v_[i].clusters.size() << " Cluster_id : " << c_.cluster_id[j] << " with " << cloud.points.size() << " data points "<< std::endl;
         }
     }
 
+    if ( t!=NULL ) {
+        t->track( c_ );
+    }
 
     pub.publish(c_);
-
-}
-
-void Centroid_tracking::init(){
-    ros::NodeHandle n_;
-
-    n_.param("Tracking/size", size , 2);
-    n_.param("Tracking/overlap", overlap , 0.2);
-
-    n_.param("Tracking/out_topic", out_topic , std::string("/Tracking"));
-    n_.param("Tracking/input_topic", input_topic , std::string("/new_pcl"));
-
-
-    sub = n_.subscribe( input_topic, 1 , &Centroid_tracking::callback, this);
-    pub = n_.advertise<my_new_msgs::clustering>( out_topic, 1);
 
 }
 
@@ -178,13 +168,19 @@ void Centroid_tracking::init(){
 int main(int argc, char** argv){
 
     ros::init(argc, argv, "Tracking");
+    ros::NodeHandle n_;
 
-    int max_id ;
-    my_new_msgs::clustering base_msg;
+    std::string out_topic;
+    std::string input_topic;
 
-    Centroid_tracking t( base_msg, max_id );
+    n_.param("Tracking/size", size , 2);
+    n_.param("Tracking/overlap", overlap , 0.2);
 
-    t.init();
+    n_.param("Tracking/out_topic", out_topic , std::string("/Tracking"));
+    n_.param("Tracking/input_topic", input_topic , std::string("/new_pcl"));
+
+    sub = n_.subscribe( input_topic, 1 , callback);
+    pub = n_.advertise<my_new_msgs::clustering>( out_topic, 1);
+
     ros::spin();
-
 }
