@@ -27,7 +27,7 @@ public:
     my_new_msgs::clustering base_msg;
     std::vector<my_new_msgs::clustering> v_;
 
-    Centroid_tracking (const my_new_msgs::clustering base_msg, int max_id ) { }
+    Centroid_tracking (const my_new_msgs::clustering base_msg, int max_id ) : base_msg(base_msg) , max_id(max_id){ }
 
     void track ( my_new_msgs::clustering& msg ) {
 
@@ -49,6 +49,7 @@ public:
 
             base_centroid_vec.push_back(base_centroid);
             base_id.push_back(base_msg.cluster_id[i]);
+            // ROS_WARN("%lu", base_id.size());
         }
 
         for (int i=0; i < msg.clusters.size(); i++)
@@ -85,15 +86,17 @@ public:
                 dist_vec.push_back( real_dist );
 
                 double min_dist;
+                int kati;
 
                 if ( j > 0 ){
-                    if ( dist_vec[j] < min_dist ){
-                        min_dist = dist_vec[j];
+                    if ( dist_vec[j] < min_dist && dist_vec[j] < kati){
+                        // min_dist = dist_vec[j];
                         msg.cluster_id[j] = base_id[i] ;
                     }
                 }
                 else {
                     min_dist = dist_vec[0];
+                    msg.cluster_id[j] = base_id[i] + 1 ;
                 }
             }
 
@@ -112,6 +115,7 @@ void Centroid_tracking::callback (const my_new_msgs::clustering& msg ){
 
     my_new_msgs::clustering c_;
     sensor_msgs::PointCloud cloud;
+    std::vector<int> id_vec;
 
     v_.push_back(msg);
 
@@ -142,12 +146,14 @@ void Centroid_tracking::callback (const my_new_msgs::clustering& msg ){
             sensor_msgs::PointCloud2 pc2;
             sensor_msgs::convertPointCloudToPointCloud2( cloud , pc2 );
             c_.clusters.push_back( pc2 );
-            c_.cluster_id.push_back( i );
+            c_.cluster_id.push_back( j );
 
-            std::cout << " Cluster_id : " << c_.cluster_id.size() << " with " << cloud.points.size() << " data points "<< std::endl;
+            // track(c_);
+
+            std::cout << " Msg " << i << " cluster size " << v_[i].clusters.size() << " Cluster_id : " << c_.cluster_id[j] << " with " << cloud.points.size() << " data points "<< std::endl;
         }
-
     }
+
 
     pub.publish(c_);
 
@@ -174,9 +180,9 @@ int main(int argc, char** argv){
     ros::init(argc, argv, "Tracking");
 
     int max_id ;
-    my_new_msgs::clustering c;
+    my_new_msgs::clustering base_msg;
 
-    Centroid_tracking t( c, max_id );
+    Centroid_tracking t( base_msg, max_id );
 
     t.init();
     ros::spin();
