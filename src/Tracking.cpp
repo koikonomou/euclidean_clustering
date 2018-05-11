@@ -28,9 +28,12 @@ public:
     void track ( my_new_msgs::clustering& msg ) {
 
         std::vector<int> base_id;
+        std::vector<int> msg_id;
+
         std::vector<Eigen::Vector4f> msg_centroid_vec;
         std::vector<Eigen::Vector4f> base_centroid_vec;
 
+        //first frame 
         for (int i=0; i < base_msg.clusters.size(); i++)
         {
             pcl::PointXYZ centroidpoint ;
@@ -39,14 +42,17 @@ public:
 
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
+            ROS_INFO("%lu" , cloud2.points.size());
 
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
+            std::cerr << " Cluster_id " << base_msg.cluster_id[i] << "  centroid_x : " << base_centroid(0) << " centroid_y : " << base_centroid(1) << " centroid_z : " << base_centroid(2) << std::endl;
 
             base_centroid_vec.push_back( base_centroid );
+
             base_id.push_back( base_msg.cluster_id[i] );
         }
-
+        //second frame
         for (int i=0; i < msg.clusters.size(); i++)
         {
             pcl::PointXYZ centroidpoint ;
@@ -55,11 +61,15 @@ public:
 
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
+            ROS_INFO("%lu" , cloud2.points.size());
 
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
+            std::cerr << " Cluster_id " << msg.cluster_id[i] << "  centroid_x : " << base_centroid(0) << " centroid_y : " << base_centroid(1) << " centroid_z : " << base_centroid(2) << std::endl;
 
-            msg_centroid_vec.push_back(base_centroid);
+            msg_centroid_vec.push_back( base_centroid );
+            msg_id.push_back( msg.cluster_id[i]);
+
         }
 
         for (int i=0; i < base_centroid_vec.size(); i++)
@@ -76,27 +86,48 @@ public:
                 dist_x = dist(0) ;
                 dist_y = dist(1) ;
                 dist_z = dist(2) ;
+                // std::cout << " dist x " << dist_x << " dist_y " << dist_y << " dist_z " << dist_z << " 3 : " << dist(3) <<std::endl;
 
+                //compute distance between centroids
                 double real_dist ;
                 real_dist = sqrt( pow( dist_x , 2 ) + pow( dist_y, 2 ) + pow( dist_z , 2 ) );
 
                 std::vector<double> dist_vec;
                 dist_vec.push_back( real_dist );
 
+/*                bool b;
+                //use each cluster once
+                //dimensions of the matrix N, M
+                int N = msg_id.size();
+                int M = N ;
+
+                int** ary = new int*[N];
+                for (int k=0; k < N; k++){
+                    ary[k] = new int[M];
+                }
+                //fill
+                for ( int k=0; k < N; k++){
+                    for (int l=0; l < M ; l++){
+                        ary[k][l] = b;
+                    }
+                }
+*/
+
                 // find the min_distance between base_msg[i] and any of the clusters in msg 
                 if ( dist_vec[j] < min_dist ){
-                     min_dist = dist_vec[j];
-                     min_index = j ;
+                    min_dist = dist_vec[j] ;
+                    min_index = j ;
                 }
+
             }
 
-            msg.cluster_id[min_index] = base_id [i] ;
+            msg.cluster_id[ min_index ] = base_id[i] ;
+
 
         }
     }
 
 };
-
 
 ros::Publisher pub;
 ros::Subscriber sub;
@@ -120,6 +151,7 @@ void callback (const my_new_msgs::clustering& msg ){
         v_.erase(v_.begin());
 
         for (int i=0 ; i < v_[0].clusters.size(); i++){
+            // TODO investigate problem with base_msg id
             v_[0].cluster_id.push_back(i);
         }
 
@@ -144,7 +176,7 @@ void callback (const my_new_msgs::clustering& msg ){
             sensor_msgs::convertPointCloud2ToPointCloud( v_[i].clusters[j] , cloud );
 
             for (unsigned k=0; k < cloud.points.size(); k++){
-                cloud.points[k].z += - offset;
+                cloud.points[k].z += offset;
             }
 
             sensor_msgs::PointCloud2 pc2;
