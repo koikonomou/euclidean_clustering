@@ -1,0 +1,5 @@
+input_topic: /new_pcl
+out_topic: /Tracking
+
+size: 2
+overlap: 0.2
