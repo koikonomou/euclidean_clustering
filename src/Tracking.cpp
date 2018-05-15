@@ -15,7 +15,7 @@
 class Centroid_tracking{
 public:
 
-    int max_id;
+    int max_id ;
 
     my_new_msgs::clustering base_msg;
 
@@ -28,7 +28,7 @@ public:
     void track ( my_new_msgs::clustering& msg ) {
 
         std::vector<int> base_id;
-        std::vector<int> msg_id;
+        std::vector<int> auth_msg_id; //authentication id 
 
         std::vector<Eigen::Vector4f> msg_centroid_vec;
         std::vector<Eigen::Vector4f> base_centroid_vec;
@@ -42,7 +42,7 @@ public:
 
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
-            ROS_INFO("%lu" , cloud2.points.size());
+            // ROS_INFO("%lu" , cloud2.points.size());
 
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
@@ -61,24 +61,34 @@ public:
 
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
-            ROS_INFO("%lu" , cloud2.points.size());
+            // ROS_INFO("%lu" , cloud2.points.size());
 
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
             std::cerr << " Cluster_id " << msg.cluster_id[i] << "  centroid_x : " << base_centroid(0) << " centroid_y : " << base_centroid(1) << " centroid_z : " << base_centroid(2) << std::endl;
 
             msg_centroid_vec.push_back( base_centroid );
-            msg_id.push_back( msg.cluster_id[i]);
+            // auth_msg_id.push_back( msg.cluster_id[i]);
 
         }
+
+        //overwrite new msg_id to check the clusters that I used 
+        for (int i=0; i < msg.cluster_id.size(); i++){
+            msg.cluster_id[i] = -10 ;
+            auth_msg_id.push_back(msg.cluster_id[i]);
+        }
+
 
         for (int i=0; i < base_centroid_vec.size(); i++)
         {
             Eigen::Vector4f dist;
             double dist_x , dist_y , dist_z;
 
+            int new_id = -1 ;
             int min_index = -1;
             double min_dist = std::numeric_limits<double>::max() ;
+
+            double max_dist = 9.0; //ADD IT IN MAIN ?
 
             for (int j=0; j < msg_centroid_vec.size(); j++)
             {
@@ -92,37 +102,33 @@ public:
                 double real_dist ;
                 real_dist = sqrt( pow( dist_x , 2 ) + pow( dist_y, 2 ) + pow( dist_z , 2 ) );
 
-                std::vector<double> dist_vec;
+                std::vector<double> dist_vec ;
                 dist_vec.push_back( real_dist );
 
-/*                bool b;
-                //use each cluster once
-                //dimensions of the matrix N, M
-                int N = msg_id.size();
-                int M = N ;
-
-                int** ary = new int*[N];
-                for (int k=0; k < N; k++){
-                    ary[k] = new int[M];
-                }
-                //fill
-                for ( int k=0; k < N; k++){
-                    for (int l=0; l < M ; l++){
-                        ary[k][l] = b;
-                    }
-                }
-*/
-
                 // find the min_distance between base_msg[i] and any of the clusters in msg 
-                if ( dist_vec[j] < min_dist ){
+                if ( dist_vec[j] < min_dist && dist_vec[j] < max_dist && auth_msg_id[j] == -10 ){
                     min_dist = dist_vec[j] ;
-                    min_index = j ;
+                    min_index = j;
+                    auth_msg_id[j] = j;
                 }
+                else if ( dist_vec[j] > max_dist && auth_msg_id[j] == -10 ){
+                    new_id = j;
+                    auth_msg_id[j] = j;
 
+                }
             }
 
             msg.cluster_id[ min_index ] = base_id[i] ;
 
+
+            msg.cluster_id[ new_id ] = max_id ;  //TO DO
+
+            for ( int k=0; k < auth_msg_id.size(); k++){
+                if ( auth_msg_id[k] == -10 ){
+                    msg.cluster_id[k] = max_id + 1 ; //TO DO
+
+                }
+            }
 
         }
     }
@@ -132,7 +138,7 @@ public:
 ros::Publisher pub;
 ros::Subscriber sub;
 
-int size, max_id;
+int size, max_id ;
 double overlap, offset ;
 
 std::vector<my_new_msgs::clustering> v_;
@@ -151,12 +157,22 @@ void callback (const my_new_msgs::clustering& msg ){
         v_.erase(v_.begin());
 
         for (int i=0 ; i < v_[0].clusters.size(); i++){
-            // TODO investigate problem with base_msg id
-            v_[0].cluster_id.push_back(i);
+
+            if ( !v_[0].cluster_id.size() ){
+                v_[0].cluster_id.push_back(i);
+            }
+
+        }
+
+        for (int i=0; i < v_[0].cluster_id.size(); i++){
+            if (v_[0].cluster_id[i] > max_id){
+                max_id = v_[0].cluster_id[i];
+            }
         }
 
         t = new Centroid_tracking( v_[0] , max_id ) ;
     }
+
     else {
         t = NULL;
     }
@@ -205,7 +221,9 @@ int main(int argc, char** argv){
     std::string out_topic;
     std::string input_topic;
 
+
     n_.param("Tracking/size", size , 2);
+    // n_.param("Tracking/dist_", max_dist , 9.0);
     n_.param("Tracking/overlap", overlap , 0.2);
 
     n_.param("Tracking/out_topic", out_topic , std::string("/Tracking"));
