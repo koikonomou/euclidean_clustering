@@ -15,7 +15,8 @@
 class Centroid_tracking{
 public:
 
-    int max_id ;
+    unsigned int max_id ;
+    double max_dist ;
 
     my_new_msgs::clustering base_msg;
 
@@ -42,7 +43,6 @@ public:
 
             pcl::PointCloud<pcl::PointXYZ> cloud2;
             pcl::fromPCLPointCloud2 ( pc2 , cloud2 );
-            // ROS_INFO("%lu" , cloud2.points.size());
 
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
@@ -65,17 +65,11 @@ public:
 
             Eigen::Vector4f base_centroid;
             pcl::compute3DCentroid ( cloud2 , base_centroid);
-            std::cerr << " Cluster_id " << msg.cluster_id[i] << "  centroid_x : " << base_centroid(0) << " centroid_y : " << base_centroid(1) << " centroid_z : " << base_centroid(2) << std::endl;
+            std::cerr << " ---Cluster_id " << msg.cluster_id[i] << "  centroid_x : " << base_centroid(0) << " centroid_y : " << base_centroid(1) << " centroid_z : " << base_centroid(2) << std::endl;
 
             msg_centroid_vec.push_back( base_centroid );
             // auth_msg_id.push_back( msg.cluster_id[i]);
 
-        }
-
-        //overwrite new msg_id to check the clusters that I used 
-        for (int i=0; i < msg.cluster_id.size(); i++){
-            msg.cluster_id[i] = -10 ;
-            auth_msg_id.push_back(msg.cluster_id[i]);
         }
 
 
@@ -84,11 +78,17 @@ public:
             Eigen::Vector4f dist;
             double dist_x , dist_y , dist_z;
 
+            int cnt = 0;
             int new_id = -1 ;
             int min_index = -1;
-            double min_dist = std::numeric_limits<double>::max() ;
 
-            double max_dist = 9.0; //ADD IT IN MAIN ?
+            //overwrite new msg_id to check the clusters that I used 
+            // for (int i=0; i < msg.cluster_id.size(); i++){
+            //     msg.cluster_id[i] = -10 ;
+            //     // auth_msg_id.push_back(msg.cluster_id[i]);
+            // }
+
+            double min_dist = std::numeric_limits<double>::max() ;
 
             for (int j=0; j < msg_centroid_vec.size(); j++)
             {
@@ -96,7 +96,6 @@ public:
                 dist_x = dist(0) ;
                 dist_y = dist(1) ;
                 dist_z = dist(2) ;
-                // std::cout << " dist x " << dist_x << " dist_y " << dist_y << " dist_z " << dist_z << " 3 : " << dist(3) <<std::endl;
 
                 //compute distance between centroids
                 double real_dist ;
@@ -106,29 +105,33 @@ public:
                 dist_vec.push_back( real_dist );
 
                 // find the min_distance between base_msg[i] and any of the clusters in msg 
-                if ( dist_vec[j] < min_dist && dist_vec[j] < max_dist && auth_msg_id[j] == -10 ){
+                if ( dist_vec[j] < min_dist /*&& dist_vec[j] < max_dist */&& msg.cluster_id[j] == -10){
                     min_dist = dist_vec[j] ;
-                    min_index = j;
-                    auth_msg_id[j] = j;
-                }
-                else if ( dist_vec[j] > max_dist && auth_msg_id[j] == -10 ){
-                    new_id = j;
-                    auth_msg_id[j] = j;
+                    min_index = j ;
 
+                }
+                else {
+                    cnt++;
+                }
+                if ( dist_vec[j] > max_dist ){
+                    new_id = cnt ;
                 }
             }
 
             msg.cluster_id[ min_index ] = base_id[i] ;
+            // msg.cluster_id[ new_id ] = max_id + 100
+
+            // msg.cluster_id[ new_id ] = max_id + cnt ; //TO DO
+            // ROS_WARN("%u", cnt );
+            // ROS_WARN("22%u", msg.cluster_id[ new_id]);
 
 
-            msg.cluster_id[ new_id ] = max_id ;  //TO DO
-
-            for ( int k=0; k < auth_msg_id.size(); k++){
-                if ( auth_msg_id[k] == -10 ){
-                    msg.cluster_id[k] = max_id + 1 ; //TO DO
-
-                }
-            }
+            // for ( int k=0; k < auth_msg_id.size(); k++){
+            //     if ( auth_msg_id[k] == -10 ){
+            //         ROS_WARN("3");
+            //         // msg.cluster_id[k] = max_id + 1 ; //TO DO
+            //     }
+            // }
 
         }
     }
@@ -138,8 +141,10 @@ public:
 ros::Publisher pub;
 ros::Subscriber sub;
 
-int size, max_id ;
-double overlap, offset ;
+bool b = true;
+int size ;
+unsigned int max_id ;
+double overlap, offset , max ;
 
 std::vector<my_new_msgs::clustering> v_;
 
@@ -155,16 +160,19 @@ void callback (const my_new_msgs::clustering& msg ){
 
     if (v_.size() > size){
         v_.erase(v_.begin());
-
-        for (int i=0 ; i < v_[0].clusters.size(); i++){
-
-            if ( !v_[0].cluster_id.size() ){
+        if ( b ){
+            for (unsigned i=0 ; i < v_[0].clusters.size(); i++){
                 v_[0].cluster_id.push_back(i);
             }
-
+            b = false;
         }
+        for (int i=0 ; i < v_[1].clusters.size(); i++){
+            v_[1].cluster_id.push_back(i);
+        }
+        // ROS_WARN("A:%u" , v_[0].cluster_id.size());
+        // ROS_WARN("B:%u" , v_[1].cluster_id.size());
 
-        for (int i=0; i < v_[0].cluster_id.size(); i++){
+        for (unsigned i=0; i < v_[0].cluster_id.size(); i++){
             if (v_[0].cluster_id[i] > max_id){
                 max_id = v_[0].cluster_id[i];
             }
@@ -177,9 +185,16 @@ void callback (const my_new_msgs::clustering& msg ){
         t = NULL;
     }
 
+    if ( t!=NULL ) {
+        t->max_dist = max;
+        t->track( v_[1] );
+        //v_.push_back(c_);
+    }
+
     for (unsigned i=0; i < v_.size(); i++)
     {
         double offset;
+
         if ( i > 0 ){
             offset = ( 1.0 - overlap ) * (double)( ros::Duration( v_[i].first_stamp - v_[0].first_stamp ).toSec()) * (double)( msg.factor );
         }
@@ -200,12 +215,9 @@ void callback (const my_new_msgs::clustering& msg ){
             c_.clusters.push_back( pc2 );
             c_.cluster_id.push_back( j );
 
-            std::cout << " Msg " << i << " num of clusters " << v_[i].clusters.size() << " Cluster_id : " << c_.cluster_id[j] << " with " << cloud.points.size() << " data points "<< std::endl;
-        }
-    }
+            // std::cout << " Msg " << i << " num of clusters " << v_[i].clusters.size() << " Cluster_id : " << c_.cluster_id[j] << " with " << cloud.points.size() << " data points "<< std::endl;
 
-    if ( t!=NULL ) {
-        t->track( c_ );
+        }
     }
 
     pub.publish(c_);
@@ -223,7 +235,7 @@ int main(int argc, char** argv){
 
 
     n_.param("Tracking/size", size , 2);
-    // n_.param("Tracking/dist_", max_dist , 9.0);
+    n_.param("Tracking/max_dist", max , 9.0);
     n_.param("Tracking/overlap", overlap , 0.2);
 
     n_.param("Tracking/out_topic", out_topic , std::string("/Tracking"));
