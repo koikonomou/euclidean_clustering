@@ -1,2 +1,2 @@
-input_topic: "/cluster_id"
+input_topic: "/Tracking"
 out_topic: "/rgb_clusters"
