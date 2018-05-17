@@ -15,7 +15,7 @@
 class Centroid_tracking{
 public:
 
-    unsigned int max_id ;
+    int max_id ; 
     double max_dist ;
 
     my_new_msgs::clustering base_msg;
@@ -24,6 +24,7 @@ public:
     {
         this->base_msg = base_msg ;
         this->max_id = max_id ;
+        this->max_dist = 0;
     }
 
     void track ( my_new_msgs::clustering& msg ) {
@@ -68,8 +69,15 @@ public:
             std::cerr << " ---Cluster_id " << msg.cluster_id[i] << "  centroid_x : " << base_centroid(0) << " centroid_y : " << base_centroid(1) << " centroid_z : " << base_centroid(2) << std::endl;
 
             msg_centroid_vec.push_back( base_centroid );
-            // auth_msg_id.push_back( msg.cluster_id[i]);
+            auth_msg_id.push_back( msg.cluster_id[i]);
 
+        }
+
+        //overwrite new msg_id to check the clusters that I used 
+        double min_value = std::numeric_limits<double>::min() ;
+
+        for (int i=0; i < auth_msg_id.size(); i++){
+            auth_msg_id[i] = ( int ) min_value ;
         }
 
 
@@ -78,15 +86,9 @@ public:
             Eigen::Vector4f dist;
             double dist_x , dist_y , dist_z;
 
-            int cnt = 0;
-            int new_id = -1 ;
+            int cnt = 0 ;
             int min_index = -1;
-
-            //overwrite new msg_id to check the clusters that I used 
-            // for (int i=0; i < msg.cluster_id.size(); i++){
-            //     msg.cluster_id[i] = -10 ;
-            //     // auth_msg_id.push_back(msg.cluster_id[i]);
-            // }
+            int b_min_index = -1 ;
 
             double min_dist = std::numeric_limits<double>::max() ;
 
@@ -104,36 +106,34 @@ public:
                 std::vector<double> dist_vec ;
                 dist_vec.push_back( real_dist );
 
-                // find the min_distance between base_msg[i] and any of the clusters in msg 
-                if ( dist_vec[j] < min_dist /*&& dist_vec[j] < max_dist */&& msg.cluster_id[j] == -10){
+                if ( dist_vec[j] < min_dist && auth_msg_id[j] == ( int ) min_value ){
                     min_dist = dist_vec[j] ;
                     min_index = j ;
-
+                    auth_msg_id[j] = min_index ;
                 }
                 else {
-                    cnt++;
-                }
-                if ( dist_vec[j] > max_dist ){
-                    new_id = cnt ;
+                    // cnt++ ;
                 }
             }
 
-            msg.cluster_id[ min_index ] = base_id[i] ;
-            // msg.cluster_id[ new_id ] = max_id + 100
+            if ( min_dist < max_dist ){
+                msg.cluster_id[ min_index ] = base_id[i] ;
+            }
+            else {
+                msg.cluster_id[ min_index ] = max_id + 1;
+            }
 
-            // msg.cluster_id[ new_id ] = max_id + cnt ; //TO DO
-            // ROS_WARN("%u", cnt );
-            // ROS_WARN("22%u", msg.cluster_id[ new_id]);
-
-
-            // for ( int k=0; k < auth_msg_id.size(); k++){
-            //     if ( auth_msg_id[k] == -10 ){
-            //         ROS_WARN("3");
-            //         // msg.cluster_id[k] = max_id + 1 ; //TO DO
-            //     }
-            // }
+            for ( int i=0 ; i < auth_msg_id.size(); i++){
+                if ( auth_msg_id[i] == (( int ) min_value) ){
+                    cnt++ ;
+                    b_min_index = i;
+                    auth_msg_id[i] = b_min_index;
+                    msg.cluster_id[ b_min_index ] = max_id + cnt ;
+                }
+            }
 
         }
+
     }
 
 };
@@ -142,8 +142,7 @@ ros::Publisher pub;
 ros::Subscriber sub;
 
 bool b = true;
-int size ;
-unsigned int max_id ;
+int size , max_id ;
 double overlap, offset , max ;
 
 std::vector<my_new_msgs::clustering> v_;
@@ -152,7 +151,6 @@ void callback (const my_new_msgs::clustering& msg ){
 
     my_new_msgs::clustering c_;
     sensor_msgs::PointCloud cloud;
-    std::vector<int> id_vec;
 
     v_.push_back(msg);
 
@@ -169,8 +167,6 @@ void callback (const my_new_msgs::clustering& msg ){
         for (int i=0 ; i < v_[1].clusters.size(); i++){
             v_[1].cluster_id.push_back(i);
         }
-        // ROS_WARN("A:%u" , v_[0].cluster_id.size());
-        // ROS_WARN("B:%u" , v_[1].cluster_id.size());
 
         for (unsigned i=0; i < v_[0].cluster_id.size(); i++){
             if (v_[0].cluster_id[i] > max_id){
@@ -185,10 +181,9 @@ void callback (const my_new_msgs::clustering& msg ){
         t = NULL;
     }
 
-    if ( t!=NULL ) {
+    if ( t !=NULL ) {
         t->max_dist = max;
         t->track( v_[1] );
-        //v_.push_back(c_);
     }
 
     for (unsigned i=0; i < v_.size(); i++)
@@ -213,9 +208,9 @@ void callback (const my_new_msgs::clustering& msg ){
             sensor_msgs::PointCloud2 pc2;
             sensor_msgs::convertPointCloudToPointCloud2( cloud , pc2 );
             c_.clusters.push_back( pc2 );
-            c_.cluster_id.push_back( j );
-
-            // std::cout << " Msg " << i << " num of clusters " << v_[i].clusters.size() << " Cluster_id : " << c_.cluster_id[j] << " with " << cloud.points.size() << " data points "<< std::endl;
+            for (int i=0; i < v_[0].cluster_id.size(); i++){
+                c_.cluster_id.push_back(v_[0].cluster_id[i]);
+            }
 
         }
     }
