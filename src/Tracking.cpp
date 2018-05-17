@@ -183,7 +183,9 @@ void callback (const my_new_msgs::clustering& msg ){
 
     if ( t !=NULL ) {
         t->max_dist = max;
+        ROS_WARN("0:%u" , v_[1].cluster_id[0]);
         t->track( v_[1] );
+        ROS_WARN("1:%u" , v_[1].cluster_id[0]);
     }
 
     for (unsigned i=0; i < v_.size(); i++)
@@ -208,10 +210,10 @@ void callback (const my_new_msgs::clustering& msg ){
             sensor_msgs::PointCloud2 pc2;
             sensor_msgs::convertPointCloudToPointCloud2( cloud , pc2 );
             c_.clusters.push_back( pc2 );
-            for (int i=0; i < v_[0].cluster_id.size(); i++){
-                c_.cluster_id.push_back(v_[0].cluster_id[i]);
-            }
 
+        }
+        for (int k=0; k < v_[i].cluster_id.size(); k++){
+            c_.cluster_id.push_back(v_[i].cluster_id[k]);
         }
     }
 
