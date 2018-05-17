@@ -31,7 +31,7 @@ void cluster_callback (const my_new_msgs::clustering& msg){
 
         if (msg.cluster_id.size() > 0 ){
             for (int u=0; u < msg.cluster_id.size(); u++){
-                ROS_WARN("%u", u);
+                ROS_WARN("%u", msg.cluster_id[u]);
 
                 for(size_t j=0; j < cloud.points.size(); j++){
                     uint8_t r = 255 - 25 * u^8 *i;
