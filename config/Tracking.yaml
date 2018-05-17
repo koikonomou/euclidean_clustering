@@ -2,4 +2,5 @@ input_topic: /new_pcl
 out_topic: /Tracking
 
 size: 2
+max_dist: 9.0
 overlap: 0.2
