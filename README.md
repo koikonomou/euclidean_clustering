@@ -4,9 +4,9 @@ Clustering and Tracking package
 
 ### Prerequisites
 
--PCL 1.8.1 
--my_new_msgs package 
--laserscan2pcl package 
+- PCL 1.8.1 
+- my_new_msgs package 
+- laserscan2pcl package 
 
 ### Running the tests
 
